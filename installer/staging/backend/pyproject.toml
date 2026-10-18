@@ -1,0 +1,12 @@
+[project]
+name = "dsh-trading-prototype"
+version = "0.1.0"
+description = "多市场 T+0 模拟交易原型（外汇 / 美股 / 港股）"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning"]

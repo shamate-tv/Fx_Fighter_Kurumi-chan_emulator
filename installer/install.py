@@ -1,10 +1,11 @@
-"""久留美模拟器 · 一键安装程序
+"""久留美模拟器 · 一键安装程序（单文件版）
 
-双击 exe / 运行 install.bat 即可：
+双击 exe 即完成安装：
   1. 检查 Python 3.10+ 与 Node.js
-  2. 创建 backend/.venv 并安装后端依赖
-  3. 安装 frontend 依赖
-安装完成后双击 start.bat 启动。
+  2. 把内置的项目文件复制到安装目录（默认 %USERPROFILE%\\KurumiSimulator）
+  3. 创建 backend/.venv 并安装后端依赖
+  4. 安装前端依赖
+  5. 创建桌面快捷方式「久留美模拟器」
 """
 
 from __future__ import annotations
@@ -20,7 +21,6 @@ TITLE = "FX 战士久留美 · 模拟器 安装程序"
 
 
 def _setup_console() -> None:
-    """让 Windows 控制台按 UTF-8 输出中文（与 install.bat 的 chcp 65001 一致）。"""
     if sys.platform == "win32":
         os.system("chcp 65001 >nul")
         try:
@@ -30,23 +30,7 @@ def _setup_console() -> None:
             pass
 
 
-def find_root() -> Path:
-    if getattr(sys, "frozen", False):
-        base = Path(sys.executable).resolve().parent
-    else:
-        base = Path(__file__).resolve().parent.parent
-    current = base
-    for _ in range(4):
-        if (current / "backend" / "requirements.txt").exists():
-            return current
-        current = current.parent
-    return base
-
-
-ROOT = find_root()
-
-
-def pause(message: str = "按 Enter 退出...") -> None:
+def pause(message: str = "\n按 Enter 退出...") -> None:
     try:
         input(message)
     except EOFError:
@@ -69,8 +53,7 @@ def capture(args: list[str]) -> str:
 
 
 def find_python() -> list[str] | None:
-    candidates = [["py", "-3"], ["python"], ["python3"]]
-    for candidate in candidates:
+    for candidate in (["py", "-3"], ["python"], ["python3"]):
         output = capture(candidate + ["--version"])
         match = re.search(r"Python (\d+)\.(\d+)", output)
         if match and (int(match.group(1)), int(match.group(2))) >= (3, 10):
@@ -82,13 +65,63 @@ def find_npm() -> str | None:
     return shutil.which("npm") or shutil.which("npm.cmd")
 
 
+def project_source() -> Path | None:
+    """内置项目文件所在目录（PyInstaller 解压到 _MEIPASS/project）。"""
+    if getattr(sys, "frozen", False):
+        base = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+    else:
+        base = Path(__file__).resolve().parent
+    candidate = base / "project"
+    if (candidate / "backend" / "requirements.txt").exists():
+        return candidate
+    return None
+
+
+def ask_install_dir() -> Path:
+    default = Path.home() / "KurumiSimulator"
+    print(f"  安装目录（直接回车使用默认：{default}）")
+    print("  > ", end="", flush=True)
+    try:
+        answer = re.sub(r"\ufeff", "", input().strip().strip('"'))
+    except EOFError:
+        answer = ""
+    return Path(answer) if answer else default
+
+
+def create_shortcut(target_bat: Path, workdir: Path) -> None:
+    desktop = Path.home() / "Desktop"
+    if not desktop.exists():
+        return
+    link = desktop / "久留美模拟器.lnk"
+    script = (
+        "$ws = New-Object -ComObject WScript.Shell; "
+        f"$sc = $ws.CreateShortcut('{link}'); "
+        f"$sc.TargetPath = '{target_bat}'; "
+        f"$sc.WorkingDirectory = '{workdir}'; "
+        "$sc.Save()"
+    )
+    try:
+        subprocess.run(
+            ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+            capture_output=True,
+            timeout=30,
+        )
+        print(f"  已创建桌面快捷方式：{link}")
+    except Exception:
+        pass
+
+
 def main() -> int:
     print()
     print("  " + TITLE)
     print("  " + "=" * (len(TITLE) + 12))
     print()
-    print(f"  项目目录：{ROOT}")
-    print()
+
+    source = project_source()
+    if source is None:
+        print("  [错误] 安装包缺少内置项目文件，请重新下载完整的安装程序。")
+        pause()
+        return 1
 
     python = find_python()
     if python is None:
@@ -105,33 +138,65 @@ def main() -> int:
         pause()
         return 1
     print("  [OK] Node.js：已安装")
+    print()
+
+    target = ask_install_dir()
+    if target.exists() and (target / "backend" / "requirements.txt").exists():
+        print()
+        print(f"  检测到已有安装：{target}")
+        print("  继续将更新代码并重装依赖（保留虚拟环境与 node_modules）。")
+    else:
+        print()
+        print(f"  [1/4] 复制项目文件到 {target}")
+        target.mkdir(parents=True, exist_ok=True)
+        for item in source.iterdir():
+            destination = target / item.name
+            if item.is_dir():
+                shutil.copytree(
+                    item,
+                    destination,
+                    dirs_exist_ok=True,
+                    ignore=shutil.ignore_patterns(".venv", "node_modules", "__pycache__", "*.pyc"),
+                )
+            else:
+                shutil.copy2(item, destination)
 
     # -------- 后端 --------
-    venv_dir = ROOT / "backend" / ".venv"
+    venv_dir = target / "backend" / ".venv"
     venv_python = venv_dir / "Scripts" / "python.exe"
     if not venv_python.exists():
         print()
-        print("  [1/3] 创建后端虚拟环境（backend/.venv）…")
+        print("  [2/4] 创建后端虚拟环境（backend/.venv）…")
         run(python + ["-m", "venv", str(venv_dir)])
     else:
         print()
-        print("  [1/3] 后端虚拟环境已存在，跳过")
+        print("  [2/4] 后端虚拟环境已存在，跳过")
 
     print()
-    print("  [2/3] 安装后端依赖（首次约 1-3 分钟）…")
+    print("  [3/4] 安装后端依赖（首次约 1-3 分钟）…")
     run([str(venv_python), "-m", "pip", "install", "--upgrade", "pip", "-q"])
-    run([str(venv_python), "-m", "pip", "install", "-r", str(ROOT / "backend" / "requirements.txt")])
+    run([str(venv_python), "-m", "pip", "install", "-r", str(target / "backend" / "requirements.txt")])
 
     # -------- 前端 --------
     print()
-    if (ROOT / "frontend" / "node_modules").exists():
-        print("  [3/3] 前端依赖已存在，跳过")
+    if (target / "frontend" / "node_modules").exists():
+        print("  [4/4] 前端依赖已存在，跳过")
     else:
-        print("  [3/3] 安装前端依赖（首次约 2-5 分钟）…")
-        run([find_npm(), "install"], cwd=ROOT / "frontend")
+        print("  [4/4] 安装前端依赖（首次约 2-5 分钟）…")
+        cache_dir = target / "frontend" / ".npm-cache"
+        run(
+            [find_npm(), "install", "--cache", str(cache_dir), "--logs-dir", str(cache_dir / "logs")],
+            cwd=target / "frontend",
+        )
+
+    # -------- 快捷方式 --------
+    print()
+    create_shortcut(target / "start.bat", target)
 
     print()
-    print("  安装完成！双击 start.bat 启动模拟器。")
+    print("  安装完成！")
+    print(f"  安装目录：{target}")
+    print("  双击桌面「久留美模拟器」或安装目录里的 start.bat 启动。")
     print()
     pause()
     return 0
