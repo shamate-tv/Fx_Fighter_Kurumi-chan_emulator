@@ -10,7 +10,6 @@ import type {
   MarketRule,
   Order,
   OrderType,
-  PlanBResult,
   Position,
   Quote,
   Side,
@@ -25,8 +24,6 @@ const RENT_JPY = 35000
 const FOOD_JPY = 15000
 const WEEKLY_JPY = RENT_JPY + FOOD_JPY
 const INITIAL_CASH_JPY = 100000
-const PLANB_REWARD = 50000
-const PLANB_COOLDOWN_MIN = 24 * 60
 const MINUTES_PER_TICK = 120 // 现实 1 秒 = 游戏 2 小时
 const SETTLE_DAYS = 7
 const MINUTES_PER_DAY = 24 * 60
@@ -135,8 +132,6 @@ interface DemoState {
   feesPaid: Record<string, number>
   gameMinutes: number
   nextSettleMinute: number
-  planbLastMinute: number | null
-  planbClaims: number
   advisorSeq: number
   nextAdvisorMinute: number
   alive: boolean
@@ -159,8 +154,6 @@ function initialState(): DemoState {
     feesPaid: { USD: 0, HKD: 0 },
     gameMinutes: 0,
     nextSettleMinute: SETTLE_EVERY,
-    planbLastMinute: null,
-    planbClaims: 0,
     advisorSeq: 0,
     nextAdvisorMinute: 10,
     alive: true,
@@ -266,9 +259,6 @@ function snapshot(): AccountSnapshot {
   }
 }
 
-const planbReady = () => state.planbLastMinute === null || state.gameMinutes - state.planbLastMinute >= PLANB_COOLDOWN_MIN
-const planbCooldownSeconds = () =>
-  state.planbLastMinute === null ? 0 : Math.max(0, (PLANB_COOLDOWN_MIN - (state.gameMinutes - state.planbLastMinute)) * 60)
 
 function lifeOut(): LifeOut {
   const equityUsd = equityOf('USD') + equityOf('HKD') / USDHKD
@@ -293,9 +283,6 @@ function lifeOut(): LifeOut {
     account_equity_usd: money(equityUsd),
     net_equity_usd: money(equityUsd + state.cashJpy / USDJPY),
     forced_liquidations: 0,
-    planb_ready: planbReady(),
-    planb_cooldown_seconds: planbCooldownSeconds(),
-    planb_claims: state.planbClaims,
     loans: [],
   }
 }
@@ -514,15 +501,6 @@ function convert(from: string, to: string, amount: string): { ok: boolean; accou
   return { ok: true, account: snapshot() }
 }
 
-function claimPlanB(): PlanBResult {
-  if (!state.alive) throw new DemoFailure('GAME_OVER', '这一局已经结束了')
-  if (!planbReady()) throw new DemoFailure('PLANB_COOLDOWN', '同一批粉丝还没凉透，再等等')
-  state.cashJpy += PLANB_REWARD
-  state.planbLastMinute = state.gameMinutes
-  state.planbClaims += 1
-  activeDispatch?.({ type: 'life', life: lifeOut() })
-  return { ok: true, gain_jpy: money(PLANB_REWARD), claims: state.planbClaims, life: lifeOut() }
-}
 
 function reset(): void {
   state = initialState()
@@ -627,7 +605,6 @@ export const demoApi = {
     return { ok: true }
   },
   life: async () => lifeOut(),
-  claimPlanB: async () => claimPlanB(),
   advanceTime: async () => ({ ok: true, now: new Date().toISOString(), released_events: 0 }),
   addSymbol: async () => {
     throw new DemoFailure('UNSUPPORTED', '演示模式暂不支持添加自定义标的')

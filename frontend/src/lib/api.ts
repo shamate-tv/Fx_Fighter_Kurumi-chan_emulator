@@ -11,7 +11,6 @@ import type {
   MarketGroup,
   Order,
   OrderType,
-  PlanBResult,
   Position,
   Quote,
   Side,
@@ -97,13 +96,6 @@ const httpApi = {
 
   /** 生存状态快照（REST 兜底；WS 的 life 帧会持续覆盖） */
   life: () => request<LifeOut>('/api/life'),
-
-  /** Plan B：B站求关注换 15000 日元，24 小时冷却 */
-  claimPlanB: (uid?: string) =>
-    request<PlanBResult>('/api/planb/claim', {
-      method: 'POST',
-      body: JSON.stringify({ uid }),
-    }),
 
   advanceTime: (payload: { days?: number; hours?: number; minutes?: number }) =>
     request<{ ok: boolean; now: string; released_events: number }>('/api/admin/advance-time', {

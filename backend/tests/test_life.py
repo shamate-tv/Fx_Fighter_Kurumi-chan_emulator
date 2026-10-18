@@ -34,7 +34,6 @@ def make_life(
     settings = Settings(
         initial_cash={k: Decimal(v) for k, v in cash.items()},
         life_initial_cash_jpy=Decimal(cash_jpy),
-        planb_delay_seconds=0,
     )
     game_clock = GameClock(clock, scale)
     life = LifeEngine(

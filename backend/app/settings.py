@@ -75,10 +75,6 @@ class Settings:
     sanity_open_threshold: Decimal = Decimal("15")
     maintenance_margin_ratio: Decimal = Decimal("0.5")
 
-    # ---- Plan B：B站求关注换生活费 ----
-    planb_reward_jpy: Decimal = Decimal("50000")
-    planb_cooldown_seconds: int = 86400
-    planb_delay_seconds: float = 0.6  # 模拟"网络请求 + 验证 UID"的延迟
 
     # ---- 萌智子事件：每 N 个游戏日出现一次 ----
     advisor_interval_days: int = 3
@@ -131,9 +127,6 @@ def load_settings() -> Settings:
         usdjpy_fallback=_env_decimal("USDJPY_FALLBACK", "150"),
         sanity_open_threshold=_env_decimal("SANITY_OPEN_THRESHOLD", "15"),
         maintenance_margin_ratio=_env_decimal("MAINTENANCE_MARGIN_RATIO", "0.5"),
-        planb_reward_jpy=_env_decimal("PLANB_REWARD_JPY", "50000"),
-        planb_cooldown_seconds=int(_env("PLANB_COOLDOWN_SECONDS", "86400")),
-        planb_delay_seconds=float(_env("PLANB_DELAY_SECONDS", "0.6")),
         advisor_interval_days=int(_env("ADVISOR_INTERVAL_DAYS", "3")),
         alpaca_api_key=_env("ALPACA_API_KEY", ""),
         alpaca_secret_key=_env("ALPACA_SECRET_KEY", ""),

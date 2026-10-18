@@ -190,8 +190,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def _trading_error_handler(_: Request, exc: TradingError) -> JSONResponse:
         if exc.code is ErrorCode.SANITY_LOCKED:
             status_code = 403
-        elif exc.code is ErrorCode.PLANB_COOLDOWN:
-            status_code = 429
         elif exc.code is ErrorCode.GAME_OVER:
             status_code = 409
         else:

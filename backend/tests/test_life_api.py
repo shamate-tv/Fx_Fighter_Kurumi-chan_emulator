@@ -15,7 +15,6 @@ def make_app():
         market_data="mock",
         use_sim_clock=True,
         initial_cash={"USD": Decimal("0"), "HKD": Decimal("100000")},
-        planb_delay_seconds=0,
     )
     return create_app(settings)
 
@@ -84,16 +83,3 @@ def test_websocket_sends_life_snapshot_on_connect() -> None:
             assert "life" in types
 
 
-def test_planb_claim_endpoint_and_cooldown() -> None:
-    app = make_app()
-    with TestClient(app) as client:
-        first = client.post("/api/planb/claim", json={"uid": "123456"})
-        assert first.status_code == 200
-        body = first.json()
-        assert body["ok"] is True
-        assert Decimal(body["life"]["cash_jpy"]) == Decimal("150000.00")
-        assert body["life"]["planb_ready"] is False
-
-        second = client.post("/api/planb/claim", json={"uid": "123456"})
-        assert second.status_code == 429
-        assert second.json()["error"]["code"] == "PLANB_COOLDOWN"

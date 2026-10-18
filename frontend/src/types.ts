@@ -146,17 +146,7 @@ export interface LifeOut {
   account_equity_usd: string
   net_equity_usd: string
   forced_liquidations: number
-  planb_ready: boolean
-  planb_cooldown_seconds: number
-  planb_claims: number
   loans: LoanOut[]
-}
-
-export interface PlanBResult {
-  ok: boolean
-  gain_jpy: string
-  claims: number
-  life: LifeOut
 }
 
 export interface GameEvent {

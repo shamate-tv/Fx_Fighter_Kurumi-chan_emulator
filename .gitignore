@@ -37,3 +37,13 @@ backend/.uv-cache/
 # 本地调试截图/脚本
 frontend/tmp-*.png
 frontend/tmp-*.mjs
+
+# 打包中间产物
+build/
+.tmp/
+
+# 安装包 / exe 不进 main 分支（单独发 Release）
+*.exe
+
+# Plan B 等本地备份（不提交）
+backup/

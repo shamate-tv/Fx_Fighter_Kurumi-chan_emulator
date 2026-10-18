@@ -78,8 +78,6 @@ class LifeState:
     next_settle_on: date | None = None
     consecutive_losses: int = 0
     forced_liquidations: int = 0
-    planb_last_claimed_at: datetime | None = None
-    planb_claims: int = 0
     loans: list[Loan] = field(default_factory=list)
 
     @property
@@ -141,9 +139,6 @@ class LifeOut(BaseModel):
     account_equity_usd: Decimal
     net_equity_usd: Decimal
     forced_liquidations: int
-    planb_ready: bool
-    planb_cooldown_seconds: int
-    planb_claims: int
     loans: list[LoanOut]
 
 

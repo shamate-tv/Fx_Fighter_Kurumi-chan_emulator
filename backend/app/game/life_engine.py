@@ -167,54 +167,11 @@ class LifeEngine:
             opening = held <= ZERO and spec.market is Market.FX  # 股票卖出=平仓；FX 开空=开仓
         return not opening
 
-    def _planb_status(self, now: datetime) -> tuple[bool, int]:
-        """Plan B 冷却：同一批粉丝一天只能薅一次。"""
-        if self.state.planb_last_claimed_at is None:
-            return True, 0
-        elapsed = (now - self.state.planb_last_claimed_at).total_seconds()
-        remaining = int(max(0, self.settings.planb_cooldown_seconds - elapsed))
-        return remaining <= 0, remaining
-
-    async def claim_planb(self, uid: str | None = None) -> dict:
-        """B站求关注换生活费：成功 +50000 JPY，进 24 小时冷却。"""
-        if not self.state.alive:
-            raise TradingError(ErrorCode.GAME_OVER, "这一局已经结束了", {})
-        now = self.engine.clock.now()
-        ready, remaining = self._planb_status(now)
-        if not ready:
-            raise TradingError(
-                ErrorCode.PLANB_COOLDOWN,
-                "同一批粉丝还没凉透，再等等（久留美：不能一天薅两次）",
-                {"remaining_seconds": remaining},
-            )
-        if uid is not None:
-            value = uid.strip()
-            if not value.isdigit() or not (1 <= len(value) <= 10):
-                raise TradingError(
-                    ErrorCode.PLANB_INVALID_UID,
-                    "这不是有效的 B 站 UID（纯数字）",
-                    {"uid": uid},
-                )
-        if self.settings.planb_delay_seconds > 0:
-            await asyncio.sleep(self.settings.planb_delay_seconds)
-
-        gain = self.settings.planb_reward_jpy
-        self.state.cash_jpy += gain
-        self.state.planb_last_claimed_at = now
-        self.state.planb_claims += 1
-        return {
-            "ok": True,
-            "gain_jpy": str(gain),
-            "claims": self.state.planb_claims,
-            "life": self.snapshot(),
-        }
-
     def snapshot(self) -> LifeOut:
         usdjpy = self.current_usdjpy()
         debt_jpy = self.state.debt_jpy
         debt_usd = _money(debt_jpy / usdjpy) if usdjpy > ZERO else ZERO
         equity = self._equity_usd()
-        planb_ready, planb_remaining = self._planb_status(self.engine.clock.now())
         return LifeOut(
             day=self.state.day,
             game_date=self.state.game_date,
@@ -236,9 +193,6 @@ class LifeEngine:
             account_equity_usd=_money(equity),
             net_equity_usd=_money(equity - debt_usd),
             forced_liquidations=self.state.forced_liquidations,
-            planb_ready=planb_ready,
-            planb_cooldown_seconds=planb_remaining,
-            planb_claims=self.state.planb_claims,
             loans=[self._loan_out(loan) for loan in self.state.loans],
         )
 
