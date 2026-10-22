@@ -47,3 +47,9 @@ build/
 
 # Plan B 等本地备份（不提交）
 backup/
+
+# toy-frontend（Toy 纯前端）
+toy-frontend
+
+#缓存
+.edge-profile/
